@@ -1,6 +1,7 @@
 #include <QDebug>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QUrl>
 #include "facilemenu.h"
 #include "settingswindow.h"
 #include "ui_settingswindow.h"
@@ -18,7 +19,9 @@
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 #endif
+#include <QScreen>
 #include "runtime.h"
+#include "topdraghotspot.h"
 
 SettingsWindow::SettingsWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -282,6 +285,16 @@ void SettingsWindow::initPanel()
             floatBall->move(panel->pos());
         }
     });
+    
+    // 创建顶部拖拽热区
+    dragHotspot = new TopDragHotspot(6, nullptr);
+    connect(dragHotspot, &TopDragHotspot::requestShowPanel, this, [=](){
+        // 只在未固定状态下自动下拉
+        if (panel && !panel->isPanelFixed()) {
+            panel->expandPanel();
+        }
+    });
+    connect(dragHotspot, &TopDragHotspot::droppedUrls, panel, &MainWindow::handleDroppedUrls);
 }
 
 void SettingsWindow::togglePanelVisibility()

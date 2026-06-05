@@ -71,4 +71,11 @@ Thumbs.db
 *.exe
 .vscode
 Desktop.ini
+/debug/
+/release/
+/FloatingUniverse_Release_Package/
 /build/
+/data/
+*.log
+/新建文本文档.txt
+/执行修改说明.txt

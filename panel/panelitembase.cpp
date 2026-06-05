@@ -178,6 +178,7 @@ void PanelItemBase::mousePressEvent(QMouseEvent *event)
         dragged = false;
         draggingOut = false;
         event->accept();
+        qDebug() << "[PanelItemBase] press at local:" << pressPos << "global:" << pressGlobalPos;
         emit pressed(event->pos());
         return ;
     }
@@ -195,6 +196,8 @@ void PanelItemBase::mouseReleaseEvent(QMouseEvent *event)
             emit dragFinished();
             emit modified();
         }
+        // 清除拖出状态
+        draggingOut = false;
         // 单击不再触发 triggered()，改为双击触发
         return ;
     }
@@ -229,28 +232,29 @@ void PanelItemBase::mouseMoveEvent(QMouseEvent *event)
                 dragged = true;
         }
 
-        if (dragged && !draggingOut)
+        if (dragged)
         {
-            // 检测是否拖出到主窗口外部（在按钮仍按下的状态）
+            // 检测是否拖出到主窗口外部
             MainWindow* mw = qobject_cast<MainWindow*>(window());
-            qDebug() << "[mouseMoveEvent] dragged:" << dragged << "draggingOut:" << draggingOut << "MainWindow:" << (mw != nullptr);
-            if (mw) {
-                qDebug() << "[mouseMoveEvent] globalPos:" << globalPos << "MainWindow geometry:" << mw->geometry();
-                qDebug() << "[mouseMoveEvent] contains:" << mw->geometry().contains(globalPos);
-            }
-            if (mw && !mw->geometry().contains(globalPos)) {
+            if (mw && !mw->geometry().contains(globalPos) && !draggingOut) {
+                // 鼠标仍按着，首次拖出窗口 → 启动原生QDrag让外部程序接收文件
                 draggingOut = true;
-                qDebug() << "[mouseMoveEvent] Dragged out of MainWindow, calling startNativeFileDrag";
-                // 尝试启动原生QDrag拖放（仅对文件类型item）
+                // startNativeFileDrag内部会先调用restoreAllToOriginalPositions
+                // 将所有选中item恢复到拖拽前的原位，消除残影
                 if (startNativeFileDrag()) {
-                    // QDrag已接管，事件链结束
+                    // QDrag结束，阻止mouseReleaseEvent再次发dragFinished
+                    dragged = false;
                     return;
                 }
+                // startNativeFileDrag失败，重置状态
+                draggingOut = false;
             }
             
-            // 正常拖拽，发送移动信号
-            emit moveItems(delta);
-            pressGlobalPos = globalPos;
+            if (!draggingOut) {
+                // 窗口内：正常拖拽，发送移动信号
+                emit moveItems(delta);
+                pressGlobalPos = globalPos;
+            }
         }
         return ;
     }

@@ -60,6 +60,7 @@ signals:
 
 public slots:
     void handleDragFinished();
+    void restoreAllToOriginalPositions(); // 恢复所有选中item到拖拽前的原始位置
 
     void saveLater();
     void save();
@@ -78,6 +79,7 @@ private slots:
 
 public:
     bool getWebPageNameAndIcon(QString url, QString& pageName, QPixmap &pageIcon);
+    void insertMimeDataFromUrls(const QList<QUrl>& urls, QPoint pos);
 
 protected:
     void focusOutEvent(QFocusEvent *event) override;
@@ -119,6 +121,14 @@ private:
     
     // 安全框相关：更新安全框状态
     void updateSafetyFrameState();
+    
+    // 后台导入：占位符路径 -> 对应 item 的映射
+    QMap<QString, IconTextItem*> m_pendingImportItems;
+    
+    // 在后台线程生成缩略图，然后在主线程更新
+    void startBackgroundImport(const QList<QUrl>& urls, QPoint pos);
+    void createPlaceholderItem(const QString& path, QPoint pos);
+    void updateItemWithThumbnail(const QString& path, const QPixmap& thumb);
 };
 
 #endif // UNIVERSEPANEL_H

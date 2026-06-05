@@ -5,8 +5,8 @@
 #endif
 IDI_ICON1 ICON DISCARDABLE "icons/appicon.ico"
 VS_VERSION_INFO VERSIONINFO
-    FILEVERSION 1,0,1,0
-    PRODUCTVERSION 1,0,1,0
+    FILEVERSION 1,0,2,0
+    PRODUCTVERSION 1,0,2,0
     FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
     FILEFLAGS VS_FF_DEBUG
@@ -23,12 +23,12 @@ VS_VERSION_INFO VERSIONINFO
             BEGIN
                 VALUE "CompanyName", "杭州懒一夕智能科技有限公司"
                 VALUE "FileDescription", "引力仓"
-                VALUE "FileVersion", "1.0.1"
+                VALUE "FileVersion", "1.0.2"
                 VALUE "InternalName", "GravityVault"
                 VALUE "LegalCopyright", "Copyright (C)2021-2026"
                 VALUE "OriginalFilename", "GravityVault.exe"
                 VALUE "ProductName", "引力仓"
-                VALUE "ProductVersion", "1.0.1"
+                VALUE "ProductVersion", "1.0.2"
             END
         END
         BLOCK "VarFileInfo"

@@ -13,6 +13,11 @@
 #include <QFileDialog>
 #include <QClipboard>
 #include <QFileInfo>
+#include <QImageReader>
+#include <QSet>
+#include <QThread>
+#include <QtConcurrent>
+#include <QFutureWatcher>
 #include "universepanel.h"
 #include "mainwindow.h"
 #include "runtime.h"
@@ -590,6 +595,8 @@ void UniversePanel::moveSelectedItems(QPoint delta)
         item->move(item->pos() + delta);
     }
     
+    qDebug() << "[UniversePanel] moveSelectedItems delta:" << delta << "selected count:" << selectedItems.size();
+    
     // 检查元素是否移出安全框
     updateSafetyFrameState();
     
@@ -599,28 +606,40 @@ void UniversePanel::moveSelectedItems(QPoint delta)
 // Handle drag finished - called when item drag ends (from PanelItemBase::dragFinished or MainWindow::mouseReleaseEvent)
 void UniversePanel::handleDragFinished()
 {
-    // 处理拖拽结束：检查是否需要恢复原位置
     if (isDragging && !originalPositions.isEmpty()) {
-        MainWindow* fp = qobject_cast<MainWindow*>(parentWidget());
-        if (fp && !fp->canDragOut) {
-            // 元素仍在安全框内，恢复到原始位置
-            foreach (auto item, originalPositions.keys()) {
-                if (item && originalPositions.contains(item)) {
-                    item->move(originalPositions[item]);
-                }
-            }
-        }
-        // 元素已移出安全框，保持在鼠标释放位置
-        // 清除保存的原始位置
+        // 窗口内释放：item 始终停在释放位置，不做位置恢复
+        // 安全框只作为视觉提示（虚线边框变色）
         originalPositions.clear();
         isDragging = false;
         emit itemDragEnded();
         
         // 重置安全框状态
-        MainWindow* fp2 = qobject_cast<MainWindow*>(parentWidget());
-        if (fp2) {
-            fp2->canDragOut = false;
+        MainWindow* fp = qobject_cast<MainWindow*>(parentWidget());
+        if (fp) {
+            fp->canDragOut = false;
         }
+    }
+}
+
+// 拖出窗口时：将所有选中item恢复到拖拽前的原始位置
+// 消除因窗口内移动产生的"残影"，然后才启动外部QDrag
+void UniversePanel::restoreAllToOriginalPositions()
+{
+    if (!isDragging || originalPositions.isEmpty()) return;
+    
+    foreach (auto item, originalPositions.keys()) {
+        if (item && originalPositions.contains(item)) {
+            item->move(originalPositions[item]);
+        }
+    }
+    originalPositions.clear();
+    isDragging = false;
+    emit itemDragEnded();
+    
+    // 重置安全框状态
+    MainWindow* fp = qobject_cast<MainWindow*>(parentWidget());
+    if (fp) {
+        fp->canDragOut = false;
     }
 }
 
@@ -656,10 +675,32 @@ void UniversePanel::insertMimeData(const QMimeData *mime, QPoint pos)
     // 处理期望数据类型
     if(mime->hasUrls())
     {
-        QFileIconProvider icon_provider;
-        QList<QUrl> urls = mime->urls();//获取数据并保存到链表中
+        QList<QUrl> urls = mime->urls();
         qInfo() << "拖拽 URLs:" << urls;
-
+        
+        // 检查是否有图片文件需要后台处理
+        static const QSet<QString> imageExtensions = {
+            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".ico", ".tiff", ".tif", ".svg", ".xpm"
+        };
+        bool hasImages = false;
+        for (const QUrl& u : urls) {
+            if (u.isLocalFile()) {
+                QString ext = "." + QFileInfo(u.toLocalFile()).suffix().toLower();
+                if (imageExtensions.contains(ext)) {
+                    hasImages = true;
+                    break;
+                }
+            }
+        }
+        
+        // 有图片文件：使用后台导入避免UI卡顿
+        if (hasImages) {
+            startBackgroundImport(urls, pos);
+            return;
+        }
+        
+        // 没有图片文件：直接处理
+        QFileIconProvider icon_provider;
         for(int i = 0; i < urls.count(); i++)
         {
             IconTextItem* item = nullptr;
@@ -668,11 +709,12 @@ void UniversePanel::insertMimeData(const QMimeData *mime, QPoint pos)
                 QString path = urls.at(i).toLocalFile();
                 if (path != "/" && path.endsWith("/"))
                     path.chop(1);
-                QIcon icon = icon_provider.icon(QFileInfo(path));
+                
                 QFileInfo info(path);
                 QString link = path;
                 link.replace(rt->PANEL_FILE_PATH, FILE_PREFIX);
                 
+                QIcon icon = icon_provider.icon(QFileInfo(path));
                 QString displayName = info.isDir() ? info.fileName() : info.baseName();
                 item = createLinkItem(pos, !i, icon, displayName, link, PanelItemType::LocalFile);
             }
@@ -768,6 +810,17 @@ void UniversePanel::insertMimeData(const QMimeData *mime, QPoint pos)
     {
         qInfo() << "TODO: 插入 Color";
     }
+}
+
+void UniversePanel::insertMimeDataFromUrls(const QList<QUrl>& urls, QPoint pos)
+{
+    if (urls.isEmpty()) return;
+
+    // 构造 QMimeData 并转发给 insertMimeData
+    QMimeData* mime = new QMimeData();
+    mime->setUrls(urls);
+    insertMimeData(mime, pos);
+    mime->deleteLater();
 }
 
 bool UniversePanel::getWebPageNameAndIcon(QString url, QString &pageName, QPixmap &pageIcon)
@@ -1585,6 +1638,13 @@ void UniversePanel::dragEnterEvent(QDragEnterEvent *event)
     unselectAll();
 
     auto mime = event->mimeData();
+    
+    // 如果来自本应用内部QDrag，拒绝接收（防止重复创建）
+    if (mime->hasFormat("application/x-floating-universe-internal")) {
+        event->ignore();
+        return;
+    }
+    
     emit signalExpandPanel();
 
     if(mime->hasUrls())//判断数据类型
@@ -1647,6 +1707,12 @@ void UniversePanel::dragMoveEvent(QDragMoveEvent *event)
 /// !注意可能是自己拖动的，作为移动
 void UniversePanel::dropEvent(QDropEvent *event)
 {
+    // 如果来自本应用内部QDrag，拒绝接收
+    if (event->mimeData()->hasFormat("application/x-floating-universe-internal")) {
+        event->ignore();
+        return;
+    }
+    
     QPoint pos = event->pos();
     auto mime = event->mimeData();
     insertMimeData(mime, pos);
@@ -1690,4 +1756,130 @@ void UniversePanel::updateSafetyFrameState()
         // 触发主窗口重绘
         fp->update();
     }
+}
+
+// ========== 后台导入功能 ==========
+
+// 创建占位项（快速显示默认图标）
+void UniversePanel::createPlaceholderItem(const QString& path, QPoint pos)
+{
+    QFileInfo info(path);
+    QString link = path;
+    link.replace(rt->PANEL_FILE_PATH, FILE_PREFIX);
+    
+    // 使用系统默认图标作为占位
+    QFileIconProvider icon_provider;
+    QIcon icon = icon_provider.icon(info);
+    
+    QString displayName = info.isDir() ? info.fileName() : info.baseName();
+    IconTextItem* item = createLinkItem(pos, false, icon, displayName, link, PanelItemType::LocalFile);
+    
+    // 保存映射关系，用于后续更新缩略图
+    m_pendingImportItems[path] = item;
+}
+
+// 在主线程更新项的缩略图
+void UniversePanel::updateItemWithThumbnail(const QString& path, const QPixmap& thumb)
+{
+    if (!m_pendingImportItems.contains(path)) return;
+    
+    IconTextItem* item = m_pendingImportItems[path];
+    if (!item) return;
+    
+    if (!thumb.isNull()) {
+        QString iconFile = IconTextItem::saveIconFile(thumb);
+        item->setIcon(iconFile);
+    }
+    
+    // 从映射中移除
+    m_pendingImportItems.remove(path);
+}
+
+// 启动后台导入任务
+void UniversePanel::startBackgroundImport(const QList<QUrl>& urls, QPoint pos)
+{
+    // 收集所有需要处理的本地文件路径
+    struct ImportTask {
+        QString path;
+        QPoint position;
+    };
+    QVector<ImportTask> tasks;
+    tasks.reserve(urls.size());
+    
+    for (const QUrl& u : urls) {
+        if (!u.isLocalFile()) continue;
+        QString path = u.toLocalFile();
+        if (path != "/" && path.endsWith("/"))
+            path.chop(1);
+        tasks.append({path, pos});
+        
+        // 在主线程快速创建占位项
+        createPlaceholderItem(path, pos);
+        
+        // 调整下一个项的位置
+        pos.rx() += us->panelIconSize + 10;
+    }
+    
+    if (tasks.isEmpty()) return;
+    
+    const int batchSize = 8; // 每批处理数量，避免资源占用过高
+    
+    // 在后台线程生成缩略图
+    QFuture<void> future = QtConcurrent::run([this, tasks, batchSize]() {
+        for (int i = 0; i < tasks.size(); ++i) {
+            const auto& task = tasks[i];
+            QPixmap thumb;
+            bool useSystemIcon = false;
+            
+            // 检查文件是否仍然存在
+            if (!QFileInfo::exists(task.path)) {
+                qWarning() << "[后台导入] 文件不存在:" << task.path;
+                continue;
+            }
+            
+            // 尝试生成缩略图
+            QFileInfo info(task.path);
+            QString ext = "." + info.suffix().toLower();
+            static const QSet<QString> imageExtensions = {
+                ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".ico", ".tiff", ".tif", ".svg", ".xpm"
+            };
+            
+            if (imageExtensions.contains(ext)) {
+                QImageReader reader(task.path);
+                reader.setAutoTransform(true);
+                reader.setScaledSize(QSize(us->panelIconSize, us->panelIconSize));
+                QImage image = reader.read();
+                if (!image.isNull()) {
+                    thumb = QPixmap::fromImage(image);
+                } else {
+                    qWarning() << "[后台导入] 无法读取图片:" << task.path;
+                    useSystemIcon = true;
+                }
+            } else {
+                // 非图片文件，使用系统图标
+                useSystemIcon = true;
+            }
+            
+            // 如果无法生成缩略图，使用系统图标
+            if (useSystemIcon && thumb.isNull()) {
+                QFileIconProvider icon_provider;
+                QIcon sysIcon = icon_provider.icon(QFileInfo(task.path));
+                if (!sysIcon.isNull()) {
+                    thumb = sysIcon.pixmap(us->panelIconSize, us->panelIconSize);
+                }
+            }
+            
+            // 回到主线程更新UI
+            QMetaObject::invokeMethod(this, [this, task, thumb]() {
+                updateItemWithThumbnail(task.path, thumb);
+            }, Qt::QueuedConnection);
+            
+            // 分批处理控制：每处理batchSize个文件后短暂暂停，避免IO过载
+            if ((i + 1) % batchSize == 0) {
+                QThread::msleep(50);
+            }
+        }
+        
+        qInfo() << "[后台导入] 完成，共处理" << tasks.size() << "个文件";
+    });
 }

@@ -6,6 +6,8 @@
 #include <QMouseEvent>
 #include <QLabel>
 #include <QPushButton>
+#include <QList>
+#include <QUrl>
 #include "facilemenu.h"
 
 class UniversePanel;
@@ -34,6 +36,8 @@ public slots:
     void showPanel();
     void detectAndApplySystemTheme();
     int getSafetyMargin() const { return safetyMargin; }
+    void handleDroppedUrls(const QList<QUrl>& urls);
+    bool isPanelFixed() const { return fixing; }
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -43,6 +47,8 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
     void paintEvent(QPaintEvent *) override;
     void resizeEvent(QResizeEvent *event) override;
     void closeEvent(QCloseEvent *) override;

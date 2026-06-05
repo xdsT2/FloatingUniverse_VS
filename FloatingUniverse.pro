@@ -1,4 +1,4 @@
-QT       += core gui network svg
+QT       += core gui network svg concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -41,6 +41,7 @@ INCLUDEPATH += third_party/color_octree/\
     third_party/\
     global/\
     widgets/\
+	panel/\
 	mainwindow/\
 	settingswindow/
 
@@ -60,6 +61,7 @@ SOURCES += \
     panel/todoitem.cpp \
     panel/todoline.cpp \
     panel/todolineedit.cpp \
+    panel/topdraghotspot.cpp \
     panel/universepanel.cpp \
     third_party/color_octree/coloroctree.cpp \
     third_party/color_octree/imageutil.cpp \
@@ -116,6 +118,7 @@ HEADERS += \
     panel/todoitem.h \
     panel/todoline.h \
     panel/todolineedit.h \
+    panel/topdraghotspot.h \
     panel/universepanel.h \
     resources/resource.rc \
     third_party/escape_dialog/escapedialog.h \

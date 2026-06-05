@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include <QSystemTrayIcon>
+#include <QList>
+#include <QUrl>
 #include "defines.h"
 #include "panel/mainwindow.h"
 #include "panel/floatball.h"
@@ -57,6 +59,7 @@ private:
     MainWindow* panel = nullptr;
     FloatBall* floatBall = nullptr;
     QSystemTrayIcon* tray = nullptr;
+    class TopDragHotspot* dragHotspot = nullptr;
 
     // 窗口拖拽
     bool m_dragging = false;

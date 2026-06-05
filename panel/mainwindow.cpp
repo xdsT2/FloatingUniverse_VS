@@ -12,6 +12,8 @@
 #include <QApplication>
 #include <QPalette>
 #include <QSettings>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
 #ifdef Q_OS_WIN32
 #include <windows.h>
 #include <windowsx.h>
@@ -24,6 +26,7 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent)
     setWindowFlag(Qt::WindowStaysOnTopHint, true);
     setAttribute(Qt::WA_TranslucentBackground, true);
     setAutoFillBackground(true);
+    setAcceptDrops(true); // Enable drag-and-drop on the window for auto-expand
     dragging = false;
     titleDragging = false;
 }
@@ -289,6 +292,11 @@ void MainWindow::expandPanel()
     if (expanding)
         return;
 
+    // 展开面板时清除所有选中项
+    if (panel) {
+        panel->unselectAll();
+    }
+
     if (us->panelBlur && this->pos().y() <= -this->height() + 1)
     {
         int radius = us->panelBlurRadius;
@@ -344,6 +352,11 @@ void MainWindow::foldPanel()
 {
     if (fixing)
         return ;
+
+    // 收纳面板时清除所有选中项
+    if (panel) {
+        panel->unselectAll();
+    }
 
     QPropertyAnimation* ani = new QPropertyAnimation(this, "pos");
     ani->setStartValue(pos());
@@ -414,6 +427,41 @@ void MainWindow::leaveEvent(QEvent *event)
 
     if (expanding)
         foldPanel();
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    // 当有外部文件拖入窗口时，自动展开面板
+    if (event->mimeData()->hasUrls() || event->mimeData()->hasText()) {
+        // 面板折叠状态下，拖入窗口区域就展开
+        if (!fixing && pos().y() < 0) {
+            expandPanel();
+        }
+        event->acceptProposedAction();
+    } else {
+        event->ignore();
+    }
+}
+
+void MainWindow::dragMoveEvent(QDragMoveEvent *event)
+{
+    // 拖拽文件过程中持续检查是否需要展开
+    if (event->mimeData()->hasUrls() || event->mimeData()->hasText()) {
+        if (!fixing && pos().y() < 0) {
+            expandPanel();
+        }
+        event->acceptProposedAction();
+    } else {
+        event->ignore();
+    }
+}
+
+void MainWindow::handleDroppedUrls(const QList<QUrl>& urls)
+{
+    if (panel) {
+        QPoint pos = panel->rect().center();
+        panel->insertMimeDataFromUrls(urls, pos);
+    }
 }
 
 void MainWindow::paintEvent(QPaintEvent *e)
