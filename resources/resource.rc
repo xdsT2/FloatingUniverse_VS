@@ -1,0 +1,38 @@
+#if defined(UNDER_CE)
+#include <winbase.h>
+#else
+#include <winver.h>
+#endif
+IDI_ICON1 ICON DISCARDABLE "icons/appicon.ico"
+VS_VERSION_INFO VERSIONINFO
+    FILEVERSION 1,0,1,0
+    PRODUCTVERSION 1,0,1,0
+    FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+    FILEFLAGS VS_FF_DEBUG
+#else
+    FILEFLAGS 0x0L
+#endif
+    FILEOS VOS__WINDOWS32
+    FILETYPE VFT_DLL
+    FILESUBTYPE 0x0L
+    BEGIN
+        BLOCK "StringFileInfo"
+        BEGIN
+            BLOCK "080404b0"
+            BEGIN
+                VALUE "CompanyName", "杭州懒一夕智能科技有限公司"
+                VALUE "FileDescription", "引力仓"
+                VALUE "FileVersion", "1.0.1"
+                VALUE "InternalName", "GravityVault"
+                VALUE "LegalCopyright", "Copyright (C)2021-2026"
+                VALUE "OriginalFilename", "GravityVault.exe"
+                VALUE "ProductName", "引力仓"
+                VALUE "ProductVersion", "1.0.1"
+            END
+        END
+        BLOCK "VarFileInfo"
+        BEGIN
+            VALUE "Translation", 0x804, 1200
+        END
+    END

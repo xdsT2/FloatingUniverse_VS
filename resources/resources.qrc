@@ -1,0 +1,104 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>icons/auxiliary.png</file>
+        <file>icons/data.png</file>
+        <file>icons/settings.png</file>
+        <file>icons/appicon.ico</file>
+        <file alias="appicon">icons/universe.png</file>
+        <file alias="signin">icons/signin.png</file>
+        <file alias="sub_menu_arrow">icons/sub_menu_arrow.png</file>
+        <file alias="add">icons/add.png</file>
+        <file alias="delete">icons/delete.png</file>
+        <file alias="fix">icons/fix.png</file>
+        <file alias="open">icons/open.png</file>
+        <file alias="refresh">icons/refresh.png</file>
+        <file alias="rename">icons/rename.png</file>
+        <file alias="link">icons/link.png</file>
+        <file alias="fast_open">icons/fast_open.png</file>
+        <file alias="open_level">icons/open_level.png</file>
+        <file alias="eye">icons/eye.png</file>
+        <file alias="cut">icons/cut.png</file>
+        <file alias="paste">icons/paste.png</file>
+        <file alias="copy">icons/copy.png</file>
+        <file alias="html">icons/html.png</file>
+        <file alias="todo">icons/todo.png</file>
+        <file alias="remind">icons/remind.png</file>
+        <file alias="txt">icons/txt.png</file>
+        <file alias="folder">icons/folder.png</file>
+        <file alias="file">icons/file.png</file>
+        <file alias="clock">icons/clock.png</file>
+        <file alias="url">icons/url.png</file>
+        <file alias="update">icons/update.png</file>
+        <file alias="more">icons/more.png</file>
+        <file alias="spacing">icons/spacing.png</file>
+        <file alias="align">icons/align.png</file>
+        <file alias="size_proportion">icons/size_proportion.png</file>
+        <file alias="origin_size">icons/origin_size.png</file>
+        <file alias="top_layer">icons/top_layer.png</file>
+        <file alias="bottom_layer">icons/bottom_layer.png</file>
+        <file alias="config">icons/config.png</file>
+        <file alias="happy">icons/happy.png</file>
+        <file alias="image">icons/image.png</file>
+        <file alias="ignore_select">icons/ignore_select.png</file>
+        <file alias="select_color">icons/select_color.png</file>
+        <file alias="rounded_rect">icons/rounded_rect.png</file>
+        <file alias="round_corner">icons/round_corner.png</file>
+        <file alias="point_menu">icons/point_menu.png</file>
+        <file alias="drawer_menu">icons/drawer_menu.png</file>
+        <file alias="apply">icons/apply.png</file>
+        <file alias="about">icons/about.png</file>
+        <file alias="used_data">icons/used_data.png</file>
+        <file alias="interaction">icons/interaction.png</file>
+        <file alias="universe2">icons/universe2.png</file>
+        <file alias="panel">icons/panel.png</file>
+        <file alias="auto_fill">icons/auto_fill.png</file>
+        <file alias="search">icons/search.png</file>
+        <file>st/open_url.png</file>
+        <file>st/bgColor.png</file>
+        <file>st/blurRadius.png</file>
+        <file>st/hoverEdgeColor.png</file>
+        <file>st/selectBgColor.png</file>
+        <file>st/selectEdgeColor.png</file>
+        <file>st/blurOpacity.png</file>
+        <file>st/fileName.png</file>
+        <file>st/iconSize.png</file>
+        <file>st/GitHub.png</file>
+        <file>st/TODO.png</file>
+        <file>st/fastOpenDirLevel.png</file>
+        <file>st/fastOpenDir.png</file>
+        <file>st/bootCount.png</file>
+        <file>st/linkOpenCount.png</file>
+        <file alias="space_transmission">icons/space_transmission.png</file>
+        <file alias="hide">icons/hide.png</file>
+        <file alias="quit">icons/quit.png</file>
+        <file>st/spatialMoveRatio.png</file>
+        <file>st/bangBar.png</file>
+        <file>st/reboot.png</file>
+        <file>st/donate.png</file>
+        <file>st/QQ.png</file>
+        <file alias="lyixi">icons/lyixi.png</file>
+        <file>st/moveOut.png</file>
+        <file alias="select_all">icons/select_all.png</file>
+        <file alias="list_copy">icons/list_copy.png</file>
+        <file alias="list_paste">icons/list_paste.png</file>
+        <file alias="check">icons/check.png</file>
+        <file alias="uncheck">icons/uncheck.png</file>
+        <file alias="style">icons/style.png</file>
+        <file>st/marginRight.png</file>
+        <file>st/marginLeft.png</file>
+        <file>st/barHeight.png</file>
+        <file>st/barColor.png</file>
+        <file>st/editing.png</file>
+        <file alias="show_panel">icons/show_panel.png</file>
+        <file>st/clickGesture.png</file>
+        <file>st/file.png</file>
+        <file>st/fileCount.png</file>
+        <file>st/asFolder.png</file>
+        <file>st/fileNameLabelMaxLength.png</file>
+    </qresource>
+    <qresource prefix="/documents">
+        <file alias="wx_qr">documents/wx_qr.png</file>
+        <file alias="zfb_qr">documents/zfb_qr.jpg</file>
+        <file alias="color_list">documents/color_list.txt</file>
+    </qresource>
+</RCC>
