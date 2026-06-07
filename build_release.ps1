@@ -64,8 +64,14 @@ function CheckDeps {
 
 function BuildProject {
     Log "Building project..."
-    if (Test-Path (Join-Path $ProjectRoot "Makefile")) {
-        mingw32-make clean 2>$null
+    # Clean build files (ignore errors)
+    if (Test-Path (Join-Path $ProjectRoot "Makefile.Release")) {
+        Remove-Item -Path (Join-Path $ReleaseDir "*") -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path (Join-Path $ProjectRoot "Makefile*") -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path (Join-Path $ProjectRoot "*.o") -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path (Join-Path $ProjectRoot "*.a") -Force -ErrorAction SilentlyContinue
+        Get-ChildItem $ProjectRoot -Filter "*.h" -Name | Where-Object { $_ -like "ui_*" } | ForEach-Object { Remove-Item (Join-Path $ProjectRoot $_) -Force -ErrorAction SilentlyContinue }
+        Get-ChildItem $ProjectRoot -Filter "*.cpp" -Name | Where-Object { $_ -like "moc_*" -or $_ -like "qrc_*" } | ForEach-Object { Remove-Item (Join-Path $ProjectRoot $_) -Force -ErrorAction SilentlyContinue }
     }
 
     Log "Running qmake..."

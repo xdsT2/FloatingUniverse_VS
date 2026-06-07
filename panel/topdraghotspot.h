@@ -36,6 +36,7 @@ private:
     int m_height;
     MainWindow *m_panel;
     QTimer m_collapseTimer;
+    int m_collapseDelayMs = 500;
 };
 
 #endif // TOPDRAGHOTSPOT_H

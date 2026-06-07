@@ -9,6 +9,9 @@
 #include <QTimer>
 #include <QCursor>
 #include <QDebug>
+#ifdef Q_OS_WIN32
+#include <windows.h>
+#endif
 
 TopDragHotspot::TopDragHotspot(MainWindow *panel, int height, QWidget *parent)
     : QWidget(parent), m_height(height), m_panel(panel)
@@ -20,7 +23,7 @@ TopDragHotspot::TopDragHotspot(MainWindow *panel, int height, QWidget *parent)
     setAcceptDrops(true);
     setMouseTracking(true);
 
-    m_collapseTimer.setInterval(300);
+    m_collapseTimer.setInterval(m_collapseDelayMs);
     m_collapseTimer.setSingleShot(true);
     connect(&m_collapseTimer, &QTimer::timeout, this, &TopDragHotspot::onCollapseTimeout);
 
@@ -32,8 +35,24 @@ void TopDragHotspot::showHotspot()
     QScreen *screen = QApplication::primaryScreen();
     QRect geom = screen->geometry();
     setGeometry(geom.x(), geom.y(), geom.width(), m_height);
+
+    // 强制置顶
     show();
     raise();
+    activateWindow();
+
+#ifdef Q_OS_WIN32
+    // 确保热区在面板窗口 Z-order 之上
+    if (m_panel) {
+        HWND hHotspot = (HWND)winId();
+        HWND hPanel = (HWND)m_panel->winId();
+        if (hHotspot && hPanel) {
+            SetWindowPos(hHotspot, hPanel, 0, 0, 0, 0,
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    }
+#endif
+
     qDebug() << "[TopDragHotspot] showHotspot at" << geometry();
 }
 
@@ -41,6 +60,15 @@ void TopDragHotspot::hideHotspot()
 {
     m_collapseTimer.stop();
     hide();
+#ifdef Q_OS_WIN32
+    if (m_panel) {
+        HWND hPanel = (HWND)m_panel->winId();
+        if (hPanel) {
+            SetWindowPos(hPanel, HWND_TOPMOST, 0, 0, 0, 0,
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    }
+#endif
     qDebug() << "[TopDragHotspot] hideHotspot";
 }
 
@@ -49,6 +77,8 @@ void TopDragHotspot::enterEvent(QEnterEvent *event)
     QWidget::enterEvent(event);
     m_collapseTimer.stop();
     if (m_panel) {
+        // 确保热区置顶后再展开面板
+        raise();
         m_panel->expandPanel();
         qDebug() << "[TopDragHotspot] enter -> expandPanel";
     }
@@ -70,6 +100,11 @@ void TopDragHotspot::mouseMoveEvent(QMouseEvent *event)
 void TopDragHotspot::onCollapseTimeout()
 {
     if (!m_panel) return;
+    // 动画进行中不收
+    if (m_panel->isAnimating()) {
+        m_collapseTimer.start(); // 重新启动
+        return;
+    }
     QPoint global = QCursor::pos();
     // 如果鼠标既不在 hotspot 也不在 panel 内，则收起
     bool inHotspot = geometry().contains(global);
@@ -80,6 +115,8 @@ void TopDragHotspot::onCollapseTimeout()
     if (!inHotspot && !inPanel) {
         m_panel->foldPanel();
         qDebug() << "[TopDragHotspot] collapse timeout -> foldPanel";
+    } else {
+        qDebug() << "[TopDragHotspot] collapse cancelled, mouse in panel/hotspot";
     }
 }
 

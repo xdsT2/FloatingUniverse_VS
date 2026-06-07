@@ -1639,19 +1639,27 @@ void UniversePanel::dragEnterEvent(QDragEnterEvent *event)
 
     auto mime = event->mimeData();
     
-    // 如果来自本应用内部QDrag，拒绝接收（防止重复创建）
+    // 忽略本程序内部发起的 drag（由 IconTextItem 标记）
     if (mime->hasFormat("application/x-floating-universe-internal")) {
         event->ignore();
         return;
     }
 
-    // 检查设置是否允许外部拖入
-    if (!us->allowMoveOut) {
-        event->ignore();
+    // 接受外部文件拖入（始终允许，不受 allowMoveOut 控制）
+    if (mime->hasUrls()) {
+        event->acceptProposedAction();
+        emit signalExpandPanel();
         return;
     }
-    
-    emit signalExpandPanel();
+
+    // 文本类型也接受
+    if (mime->hasText()) {
+        event->acceptProposedAction();
+        emit signalExpandPanel();
+        return;
+    }
+
+    event->ignore();
 
     if(mime->hasUrls())//判断数据类型
     {
@@ -1719,12 +1727,7 @@ void UniversePanel::dropEvent(QDropEvent *event)
         return;
     }
 
-    // 检查设置是否允许拖入外部文件
-    if (!us->allowMoveOut) {
-        event->ignore();
-        return;
-    }
-
+    // 外部拖入始终允许，不受 allowMoveOut 控制
     QPoint pos = event->pos();
     auto mime = event->mimeData();
     insertMimeData(mime, pos);

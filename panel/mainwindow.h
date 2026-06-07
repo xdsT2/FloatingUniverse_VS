@@ -8,6 +8,7 @@
 #include <QPushButton>
 #include <QList>
 #include <QUrl>
+#include <QTimer>
 #include "facilemenu.h"
 
 class UniversePanel;
@@ -38,6 +39,8 @@ public slots:
     int getSafetyMargin() const { return safetyMargin; }
     void handleDroppedUrls(const QList<QUrl>& urls);
     bool isPanelFixed() const { return fixing; }
+    bool isAnimating() const { return animating; }
+    bool isFolded() const { return m_isFolded; }
     void setDragHotspot(class TopDragHotspot* hotspot) { m_dragHotspot = hotspot; }
 
 protected:
@@ -95,6 +98,13 @@ private:
 
     // Drag hotspot
     TopDragHotspot* m_dragHotspot = nullptr;
+
+    // 折叠状态标记
+    bool m_isFolded = false;
+
+    // 展开后短暂忽略 resize-start 的时间窗口
+    bool m_ignoreResizeStart = false;
+    QTimer m_ignoreResizeTimer;
 
 private:
     void initTitleBar();

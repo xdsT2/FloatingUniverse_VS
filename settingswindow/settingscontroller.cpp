@@ -36,6 +36,11 @@ void SettingsController::initItems()
         emit updatePanel();
         emit themeModeChanged(us->themeMode);
     });
+
+    // 面板图标大小
+    w->add(QPixmap(":/icons/st/iconSize"), "面板图标大小", "调整面板中图标和文字的显示尺寸 (16~48px)", "panel/iconSize", &us->panelIconSize, 16, 48, 1);
+    UPDATE_PANEL;
+
     addGroup(w, "视觉与外观");
 
     // 二、核心操作

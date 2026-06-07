@@ -15,9 +15,36 @@
 #include <QSettings>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
+#include <QCursor>
+#include <QWindow>
 #ifdef Q_OS_WIN32
 #include <windows.h>
 #include <windowsx.h>
+
+// 根据给定屏幕计算面板默认尺寸（按比例 + 最小/最大限制）
+static QSize getPanelDefaultSizeForScreen(QScreen *screen)
+{
+    if (!screen) screen = QGuiApplication::primaryScreen();
+    if (!screen) return QSize(410, 700);
+
+    QRect avail = screen->availableGeometry();
+    int sw = avail.width();
+    int sh = avail.height();
+
+    const double widthRatio = 0.35;
+    const double heightRatio = 0.65;
+
+    int targetW = qRound(sw * widthRatio);
+    int targetH = qRound(sh * heightRatio);
+
+    QSize minSz(300, 420);
+    QSize maxSz(qRound(sw * 0.85), qRound(sh * 0.95));
+
+    int w = qMax(minSz.width(), qMin(maxSz.width(), targetW));
+    int h = qMax(minSz.height(), qMin(maxSz.height(), targetH));
+    return QSize(w, h);
+}
+
 #include <dwmapi.h>
 #endif
 
@@ -30,14 +57,26 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent)
     setAcceptDrops(true); // Enable drag-and-drop on the window for auto-expand
     dragging = false;
     titleDragging = false;
+    m_isFolded = false;
+    m_ignoreResizeStart = false;
+
+    m_ignoreResizeTimer.setSingleShot(true);
+    m_ignoreResizeTimer.setInterval(400);
+    connect(&m_ignoreResizeTimer, &QTimer::timeout, this, [this]() {
+        m_ignoreResizeStart = false;
+    });
 }
 
 void MainWindow::initPanel()
 {
     QRect screen = screenGeometry();
-    // 加载上次保存的窗口大小
-    int savedW = us->i("panel/width", us->panelWidth);
-    int savedH = us->i("panel/height", us->panelHeight);
+
+    // 动态根据当前屏幕计算面板默认尺寸
+    QSize defaultSize = getPanelDefaultSizeForScreen(windowHandle() ? windowHandle()->screen() : nullptr);
+
+    // 加载上次保存的窗口大小，若无则使用动态计算的默认尺寸
+    int savedW = us->i("panel/width", defaultSize.width());
+    int savedH = us->i("panel/height", defaultSize.height());
     resize(savedW, savedH);
     move((screen.width() - width()) / 2 + us->panelCenterOffset, 50);
     expanding = true;
@@ -308,6 +347,12 @@ void MainWindow::expandPanel()
     // 展开面板时隐藏热区
     if (m_dragHotspot) m_dragHotspot->hideHotspot();
 
+    // 展开后短暂忽略顶端 resize，防止热区展开被抢占
+    m_ignoreResizeStart = true;
+    m_ignoreResizeTimer.start();
+
+    m_isFolded = false;
+
     // 展开面板时清除所有选中项
     if (panel) {
         panel->unselectAll();
@@ -390,6 +435,7 @@ void MainWindow::foldPanel()
         PanelItemBase::_blockPress = animating = false;
         update();
         // 面板折叠完成后显示热区
+        m_isFolded = true;
         if (m_dragHotspot) m_dragHotspot->showHotspot();
     });
     ani->start();
@@ -439,6 +485,10 @@ void MainWindow::leaveEvent(QEvent *event)
         return ;
 
     if (panel->currentMenu && panel->currentMenu->hasFocus())
+        return ;
+
+    // 折叠状态下不走此处的 leaveEvent 折叠逻辑，由热区全权管理
+    if (m_isFolded)
         return ;
 
     QWidget::leaveEvent(event);
@@ -705,6 +755,12 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *r
         const auto ratio = devicePixelRatioF();
         int xPos = static_cast<int>(GET_X_LPARAM(msg->lParam) / ratio - this->frameGeometry().x());
         int yPos = static_cast<int>(GET_Y_LPARAM(msg->lParam) / ratio - this->frameGeometry().y());
+
+        // 折叠状态下完全禁止 resize，让热区始终优先捕获顶端鼠标事件
+        if (m_isFolded || m_ignoreResizeStart) {
+            return false;
+        }
+
         if(xPos < boundaryWidth && yPos < boundaryWidth)
             *result = HTTOPLEFT;
         else if(xPos >= width() - boundaryWidth && yPos < boundaryWidth)
