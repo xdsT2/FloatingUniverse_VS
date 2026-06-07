@@ -1644,6 +1644,12 @@ void UniversePanel::dragEnterEvent(QDragEnterEvent *event)
         event->ignore();
         return;
     }
+
+    // 检查设置是否允许外部拖入
+    if (!us->allowMoveOut) {
+        event->ignore();
+        return;
+    }
     
     emit signalExpandPanel();
 
@@ -1712,7 +1718,13 @@ void UniversePanel::dropEvent(QDropEvent *event)
         event->ignore();
         return;
     }
-    
+
+    // 检查设置是否允许拖入外部文件
+    if (!us->allowMoveOut) {
+        event->ignore();
+        return;
+    }
+
     QPoint pos = event->pos();
     auto mime = event->mimeData();
     insertMimeData(mime, pos);

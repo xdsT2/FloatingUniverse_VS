@@ -29,16 +29,10 @@ IconTextItem::IconTextItem(QWidget *parent) : PanelItemBase(parent)
     iconLabel->setObjectName("IconLabel");
     textLabel->setObjectName("TextLabel");
 
-    // 固定图标为正方形
-    int iconSize = us->panelIconSize;
-    iconLabel->setFixedSize(iconSize, iconSize);
-    iconLabel->setScaledContents(false);
-    iconLabel->setAlignment(Qt::AlignCenter);
+    applyIconSize();
 
-    // 固定名字宽度为图标宽度，单行不换行
-    textLabel->setFixedWidth(iconSize);
-    textLabel->setWordWrap(false);
-    textLabel->setAlignment(Qt::AlignCenter);
+    // 当 settings 改变时动态更新图标尺寸
+    connect(us, &USettings::panelIconSizeChanged, this, &IconTextItem::applyIconSize);
 
     // 垂直布局：图标在上，名字在下
     QVBoxLayout* layout = new QVBoxLayout(this);
@@ -46,10 +40,6 @@ IconTextItem::IconTextItem(QWidget *parent) : PanelItemBase(parent)
     layout->setSpacing(2);
     layout->addWidget(iconLabel, 0, Qt::AlignHCenter);
     layout->addWidget(textLabel, 0, Qt::AlignHCenter);
-
-    // 固定整体宽度，不横向撑开
-    int widgetW = iconSize + 8;
-    setFixedWidth(widgetW);
 
     updateTextColor();
 
@@ -86,6 +76,26 @@ void IconTextItem::fromJson(const MyJson &json)
     openLevel = json.i("open_level", openLevel);
 }
 
+void IconTextItem::applyIconSize()
+{
+    int iconSize = us->panelIconSize;
+    iconLabel->setFixedSize(iconSize, iconSize);
+    iconLabel->setScaledContents(false);
+    iconLabel->setAlignment(Qt::AlignCenter);
+
+    textLabel->setFixedWidth(iconSize);
+    textLabel->setWordWrap(false);
+    textLabel->setAlignment(Qt::AlignCenter);
+
+    int widgetW = iconSize + 8;
+    setFixedWidth(widgetW);
+
+    // 刷新图标显示
+    if (!iconName.isEmpty()) {
+        setIcon(iconName);
+    }
+}
+
 void IconTextItem::initResource()
 {
     setFastOpen(us->fastOpenDir);
@@ -110,14 +120,18 @@ void IconTextItem::updateTextColor()
 {
     bool isDark = isDarkTheme();
 
+    // 确保 label 背景透明
+    textLabel->setAttribute(Qt::WA_TranslucentBackground, true);
+
     if (fileMissing) {
         // 文件丢失时显示灰色半透明
-        textLabel->setStyleSheet("#TextLabel { color: rgba(128, 128, 128, 160); }");
+        textLabel->setStyleSheet("#TextLabel { color: rgba(128, 128, 128, 160); background: transparent; }");
     }
     else if (isDark) {
-        textLabel->setStyleSheet("#TextLabel { color: #E0E0E0; }");
+        textLabel->setStyleSheet("#TextLabel { color: #E0E0E0; background: transparent; }");
     } else {
-        textLabel->setStyleSheet("#TextLabel { color: #333333; }");
+        // 浅色主题：深色文字 + 半透明阴影底增强可读性
+        textLabel->setStyleSheet("#TextLabel { color: #222222; background: transparent; }");
     }
 }
 
@@ -754,6 +768,12 @@ void IconTextItem::dropEvent(QDropEvent *event)
 
 bool IconTextItem::startNativeFileDrag()
 {
+    // 检查设置是否允许拖出
+    if (!us->allowMoveOut) {
+        qDebug() << "[startNativeFileDrag] 拖出被设置禁止";
+        return false;
+    }
+
     QStringList realLinks = getRealLinks();
     qDebug() << "[startNativeFileDrag] realLinks:" << realLinks;
     if (realLinks.isEmpty()) return false;
@@ -901,6 +921,15 @@ void IconTextItem::paintEvent(QPaintEvent *ev)
     QRectF r = rect().adjusted(2, 2, -2, -2);
     QPainterPath path;
     path.addRoundedRect(r, 8, 8);
+    
+    // 浅色主题下先绘制阴影
+    if (!dark) {
+        QColor shadow = QColor(0, 0, 0, 50);
+        QPainterPath shadowPath;
+        shadowPath.addRoundedRect(r.translated(0, 3), 8, 8);
+        p.fillPath(shadowPath, shadow);
+    }
+    
     p.fillPath(path, bg);
     
     // 选中态：发光边框
@@ -955,8 +984,12 @@ void MarqueeLabel::setFullText(const QString &txt)
 void MarqueeLabel::paintEvent(QPaintEvent *ev)
 {
     QPainter p(this);
-    p.setPen(palette().windowText().color());
-    p.setFont(font());
+    p.setRenderHint(QPainter::Antialiasing);
+
+    // 使用主题颜色，而不是 palette().windowText()（可能被父控件覆盖）
+    bool isDark = isDarkTheme();
+    QColor textColor = isDark ? QColor(0xE0, 0xE0, 0xE0) : QColor(0x22, 0x22, 0x22);
+
     QString txt = text();
     QFontMetrics fm(font());
     int textW = fm.horizontalAdvance(txt);
@@ -964,6 +997,18 @@ void MarqueeLabel::paintEvent(QPaintEvent *ev)
     // 不需要滚动 或 不在悬停中 → 单行省略显示
     if (!m_scrollingNeeded || !m_isHovering || !m_timer->isActive()) {
         QString elided = fm.elidedText(txt, Qt::ElideRight, width());
+
+        // 浅色主题下绘制半透明阴影底增强可读性
+        if (!isDark) {
+            p.setPen(Qt::NoPen);
+            QColor shadow = QColor(0, 0, 0, 30);
+            QRectF bgRect = rect().adjusted(1, 1, -1, -1);
+            p.setBrush(shadow);
+            p.drawRoundedRect(bgRect.translated(0, 1), 3, 3);
+        }
+
+        p.setPen(textColor);
+        p.setFont(font());
         QRect r = rect();
         p.drawText(r, alignment(), elided);
         return;
@@ -973,6 +1018,18 @@ void MarqueeLabel::paintEvent(QPaintEvent *ev)
     int gap = 40;
     int x = -m_offset;
     int y = (height() + fm.ascent() - fm.descent()) / 2;
+
+    // 浅色主题下绘制阴影底
+    if (!isDark) {
+        p.setPen(Qt::NoPen);
+        QColor shadow = QColor(0, 0, 0, 30);
+        QRectF bgRect = rect().adjusted(1, 1, -1, -1);
+        p.setBrush(shadow);
+        p.drawRoundedRect(bgRect.translated(0, 1), 3, 3);
+    }
+
+    p.setPen(textColor);
+    p.setFont(font());
     while (x < width()) {
         p.drawText(x, y, txt);
         x += textW + gap;

@@ -47,6 +47,7 @@ public:
     void setFastOpen(bool fast);
     void setOpenDirLevel(int level);
     void updateTextColor();
+    void applyIconSize();
 
     QString getText() const;
     QString getIconName() const;

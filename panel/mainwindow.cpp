@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "topdraghotspot.h"
 #include "runtime.h"
 #include "usettings.h"
 #include "signaltransfer.h"
@@ -34,7 +35,10 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent)
 void MainWindow::initPanel()
 {
     QRect screen = screenGeometry();
-    resize(us->panelWidth, us->panelHeight);
+    // 加载上次保存的窗口大小
+    int savedW = us->i("panel/width", us->panelWidth);
+    int savedH = us->i("panel/height", us->panelHeight);
+    resize(savedW, savedH);
     move((screen.width() - width()) / 2 + us->panelCenterOffset, 50);
     expanding = true;
     fixing = true;
@@ -277,9 +281,18 @@ void MainWindow::mouseDoubleClickEvent(QMouseEvent *event)
 
 void MainWindow::showPanel()
 {
-    QRect screen = screenGeometry();
-    resize(us->panelWidth, us->panelHeight);
-    move((screen.width() - width()) / 2 + us->panelCenterOffset, 50);
+    // 恢复上次悬浮时的窗口大小，避免变成横长条
+    if (m_wasFloating && m_lastFloatingGeometry.isValid()) {
+        resize(m_lastFloatingGeometry.size());
+        QRect screen = screenGeometry();
+        // 居中显示
+        move((screen.width() - width()) / 2 + us->panelCenterOffset, 50);
+        m_wasFloating = false;
+    } else {
+        resize(us->panelWidth, us->panelHeight);
+        QRect screen = screenGeometry();
+        move((screen.width() - width()) / 2 + us->panelCenterOffset, 50);
+    }
     expanding = true;
     fixing = true;
     _prev_fixing = true;
@@ -291,6 +304,9 @@ void MainWindow::expandPanel()
 {
     if (expanding)
         return;
+
+    // 展开面板时隐藏热区
+    if (m_dragHotspot) m_dragHotspot->hideHotspot();
 
     // 展开面板时清除所有选中项
     if (panel) {
@@ -373,6 +389,8 @@ void MainWindow::foldPanel()
         ani->deleteLater();
         PanelItemBase::_blockPress = animating = false;
         update();
+        // 面板折叠完成后显示热区
+        if (m_dragHotspot) m_dragHotspot->showHotspot();
     });
     ani->start();
     expanding = false;
@@ -530,6 +548,16 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
 
+    // 保存当前窗口大小，用于下次 showPanel 时恢复
+    // 只有在展开状态且不是初始化时才记录
+    if (expanding && !animating) {
+        m_lastFloatingGeometry = geometry();
+        m_wasFloating = true;
+        // 同步保存到设置
+        us->set("panel/width", width());
+        us->set("panel/height", height());
+    }
+
     if (titleBar) {
         titleBar->setGeometry(0, 0, width(), 32);
         if (dragHintBtn) {
@@ -673,8 +701,7 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *r
     switch(msg->message)
     {
     case WM_NCHITTEST:
-        if (!fixing)
-            return false;
+    {
         const auto ratio = devicePixelRatioF();
         int xPos = static_cast<int>(GET_X_LPARAM(msg->lParam) / ratio - this->frameGeometry().x());
         int yPos = static_cast<int>(GET_Y_LPARAM(msg->lParam) / ratio - this->frameGeometry().y());
@@ -695,14 +722,18 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *r
             *result = HTBOTTOM;
         }
         else
-           return false;
+        {
+            return false;
+        }
 
+        // 保存当前窗口大小和位置
         QRect screen = screenGeometry();
         us->set("panel/centerOffset", geometry().center().x() - screen.center().x());
         us->set("panel/width", width());
         us->set("panel/height", height());
 
         return true;
+    }
     }
 #else
     return QWidget::nativeEvent(eventType, message, result);

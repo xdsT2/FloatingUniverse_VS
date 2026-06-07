@@ -181,7 +181,7 @@ void SettingsWindow::showEvent(QShowEvent *e)
 void SettingsWindow::initTray()
 {
     tray = new QSystemTrayIcon(this);
-    tray->setIcon(QIcon(":/icons/appicon"));
+    tray->setIcon(QIcon(":/icons/signin"));
     tray->setToolTip(APPLICATION_NAME);
     tray->show();
 
@@ -287,14 +287,12 @@ void SettingsWindow::initPanel()
     });
     
     // 创建顶部拖拽热区
-    dragHotspot = new TopDragHotspot(6, nullptr);
-    connect(dragHotspot, &TopDragHotspot::requestShowPanel, this, [=](){
-        // 只在未固定状态下自动下拉
-        if (panel && !panel->isPanelFixed()) {
-            panel->expandPanel();
-        }
-    });
+    dragHotspot = new TopDragHotspot(panel, 6, nullptr);
+    // dragEnter 时也要展开面板
+    connect(dragHotspot, &TopDragHotspot::requestShowPanel, panel, &MainWindow::expandPanel);
     connect(dragHotspot, &TopDragHotspot::droppedUrls, panel, &MainWindow::handleDroppedUrls);
+    // 通知 panel 热区指针，让 panel 内部控制显示/隐藏
+    panel->setDragHotspot(dragHotspot);
 }
 
 void SettingsWindow::togglePanelVisibility()

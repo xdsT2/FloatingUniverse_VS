@@ -1,6 +1,8 @@
 #include <QVBoxLayout>
 #include <QClipboard>
 #include <QScrollBar>
+#include <QPixmap>
+#include <QColor>
 #include "todoitem.h"
 #include "usettings.h"
 #include "facilemenu.h"
@@ -38,8 +40,11 @@ TodoItem::TodoItem(QWidget *parent) : ResizeableItemBase(parent)
         }
     });
 
-    // 添加按钮
-    addButton = new WaterCircleButton(QIcon(":/icons/add"), this);
+    // 添加按钮 - 使用 PixmapMask 模式以支持主题变色
+    QPixmap addPixmap(":/icons/add");
+    QColor iconColor = isDarkTheme() ? QColor(255, 255, 255) : QColor(50, 50, 50);
+    addButton = new WaterCircleButton(addPixmap, this);
+    addButton->setIconColor(iconColor);
     addButton->setObjectName("AddButton");
     addButton->setFixedForePos();
     addButton->setFixedForeSize();

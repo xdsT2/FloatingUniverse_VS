@@ -15,11 +15,24 @@ enum Side
 
 class USettings : public MySettings
 {
+    Q_OBJECT
 public:
     USettings(QString filePath, QObject* parent = nullptr);
 
 private:
     void restoreSettings();
+
+signals:
+    void panelIconSizeChanged(int size);
+
+public slots:
+    void setPanelIconSize(int size) {
+        panelIconSize = size;
+        beginGroup("panel");
+        set("iconSize", size);
+        endGroup();
+        emit panelIconSizeChanged(size);
+    }
 
 public:
     // 面板坐标

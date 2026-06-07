@@ -38,6 +38,7 @@ public slots:
     int getSafetyMargin() const { return safetyMargin; }
     void handleDroppedUrls(const QList<QUrl>& urls);
     bool isPanelFixed() const { return fixing; }
+    void setDragHotspot(class TopDragHotspot* hotspot) { m_dragHotspot = hotspot; }
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -87,6 +88,13 @@ private:
     int safetyMargin = 20; // 安全框内边距（像素）
     bool canDragOut = false; // 是否允许拖出到外部
     bool safetyFrameVisible = false; // 安全框是否可见（点击触发后保持显示）
+
+    // Floating state
+    QRect m_lastFloatingGeometry; // 保存最后一次悬浮时的 geometry
+    bool m_wasFloating = false; // 之前是否处于悬浮状态
+
+    // Drag hotspot
+    TopDragHotspot* m_dragHotspot = nullptr;
 
 private:
     void initTitleBar();
